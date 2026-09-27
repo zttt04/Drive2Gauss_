@@ -206,7 +206,7 @@ def basic_clean(text):
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     BAD_PUNCT_REGEX = re.compile(
-        r"[" + "#®•©™&@·º½¾¿¡§~" + "\)" + "\(" + "\]" + "\[" + "\}" + "\{" + "\|" + "\\" + "\/" + "\*" + r"]{1,}"
+        r"[#®•©™&@·º½¾¿¡§~()\[\]{}|\\/*]{1,}"
     )  # noqa
 
 

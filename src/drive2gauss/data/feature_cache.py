@@ -14,7 +14,7 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 
-import train_static_pointforward_stage2 as pointforward
+from drive2gauss.training import static_decoder_pipeline as pointforward
 
 
 FRONT_VIEWS = [0, 1, 2]

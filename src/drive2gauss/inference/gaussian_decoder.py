@@ -464,11 +464,8 @@ def main() -> None:
         rank_extension_root.mkdir(parents=True, exist_ok=True)
         os.environ["TORCH_EXTENSIONS_DIR"] = str(rank_extension_root)
 
-    tools_dir = Path(__file__).resolve().parent
-    if str(tools_dir) not in sys.path:
-        sys.path.insert(0, str(tools_dir))
-    import train_static_pointforward_flowtrack_multiscene as trainer
-    import train_static_pointforward_stage2 as pointforward
+    from drive2gauss.training import gaussian_decoder as trainer
+    from drive2gauss.training import static_decoder_pipeline as pointforward
 
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     checkpoint_step = int(checkpoint["step"])

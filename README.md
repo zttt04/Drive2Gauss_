@@ -8,6 +8,38 @@ nuScenes context -> DiST-T RGB-D-flow latent -> decoded RGB-D-flow
                  -> feature-UNet Gaussian decoder -> rendered views
 ```
 
+The two core model stages live together under `src/drive2gauss/models/`:
+`generator/` contains the integrated RGB-D-flow video generator, while the
+Gaussian decoder is defined in the adjacent Python modules. Training,
+inference, rendering, data loading, and evaluation live in their corresponding
+`src/drive2gauss/` packages. The top-level `scripts/` directory contains only
+thin user entry points, while `tools/` is reserved for preprocessing and
+artifact export.
+
+The Gaussian decoder architecture is defined independently from its training
+loop:
+
+```text
+src/drive2gauss/models/gaussian_modules.py
+    StaticPointForwardModel, FeatureRenderUNet, and Gaussian rendering primitives
+
+src/drive2gauss/models/gaussian_decoder.py
+    Drive2GaussGaussianDecoder
+
+src/drive2gauss/models/generator/
+    RGB-D-flow video generator
+```
+
+The remaining source layout is:
+
+```text
+src/drive2gauss/data/          datasets, latent caches, and query sampling
+src/drive2gauss/training/      generator and Gaussian-decoder training loops
+src/drive2gauss/inference/     video generation, reconstruction, and novel views
+src/drive2gauss/rendering/     time-dependent gsplat rendering
+src/drive2gauss/evaluation/    reconstruction metrics and full-set evaluation
+```
+
 The official Gaussian decoder consumes generated flow normally. Do not pass
 `--zero-flow-input`; that flag exists only for ablations. Direct-RGB
 experiments are not part of the released result.
@@ -36,7 +68,8 @@ pip install torch==2.4.1 torchvision==0.19.1 \
   --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 pip install gsplat==1.5.3
-python -m compileall -q tools third_party/distt/DISTT
+pip install --no-deps -e .
+python -m compileall -q src/drive2gauss tools
 pytest -q tests
 ```
 
@@ -44,7 +77,7 @@ DiST-T additionally needs its MagicDriveDiT-compatible ColossalAI fork and a
 FlashAttention build matching the local CUDA/PyTorch ABI. CogVideoX, T5,
 Turbo-VAED, SEA-RAFT, Grounded-SAM 2, and nuScenes are separately licensed.
 
-Do not install `third_party/distt/requirement/distt.txt` directly: it is an
+Do not install `src/drive2gauss/models/generator/requirement/distt.txt` directly: it is an
 environment capture containing machine-local Conda URLs and mutually
 exclusive MMCV variants. Use it only as a version reference when recreating
 the DiST-T environment. In particular, the captured file contains both
@@ -95,8 +128,10 @@ data/generated_latent_rgb_4f3v_train/
 data/generated_latent_rgbd_flow_full_val/
 ```
 
-The generator config reads `NUSCENES_ROOT`, `DRIVE2GAUSS_PRETRAINED_ROOT`,
-`DRIVE2GAUSS_LATENT_MANIFESTS`, and `DRIVE2GAUSS_OUTPUT_ROOT`.
+The generator config reads `NUSCENES_ROOT`, `DEPTH_ROOT_JSON`, `RDEPTH_ROOT`,
+`DRIVE2GAUSS_PRETRAINED_ROOT`, `DRIVE2GAUSS_LATENT_MANIFESTS`, and
+`DRIVE2GAUSS_OUTPUT_ROOT`. Set `DRIVE2GAUSS_RESUME_CHECKPOINT` when continuing
+training from a released checkpoint.
 
 ## Generate RGB-D-flow latents
 
@@ -157,6 +192,12 @@ export GAUSSIAN_INIT_CHECKPOINT="${GAUSSIAN_CHECKPOINT}"
 bash scripts/train_gaussian_decoder.sh \
   --unfreeze-backbone --lr 1e-4 --backbone-lr 1e-4
 ```
+
+Gaussian decoder training constructs camera geometry and flow queries online.
+In addition to the manifests and feature caches, set the `GAUSSIAN_DATA_ROOT`,
+`GAUSSIAN_{TRAIN,VAL}_ANN_FILE`, `GAUSSIAN_{TRAIN,VAL}_FLOW_RGB_ROOT`, and
+`GAUSSIAN_{TRAIN,VAL}_FLOW_INDEX` values shown in `configs/paths.env.example`.
+The annotation split must match the source split of each manifest.
 
 `--resume-checkpoint` is only for an exact continuation with identical
 architecture, trainable modules, and optimizer groups. It is not

@@ -17,8 +17,7 @@ import torch.nn.functional as F
 from PIL import Image, ImageDraw
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DISTT_SCRIPTS = REPO_ROOT / "third_party" / "distt" / "scripts"
+REPO_ROOT = Path(__file__).resolve().parents[3]
 TURBO_ROOT_DEFAULT = Path(
     os.environ.get("TURBO_VAED_ROOT", REPO_ROOT / "third_party" / "Turbo-VAED")
 )
@@ -109,9 +108,7 @@ def view_to_index(view: str) -> int:
 
 
 def build_turbo_decoder(args: argparse.Namespace, device: torch.device):
-    if str(DISTT_SCRIPTS) not in sys.path:
-        sys.path.insert(0, str(DISTT_SCRIPTS))
-    from compare_turbo_vaed_cog_decoder import build_turbo_decoder as build_decoder
+    from drive2gauss.models.turbo_decoder import build_turbo_decoder as build_decoder
 
     decoder_args = argparse.Namespace(
         turbo_repo_root=str(args.turbo_repo_root),

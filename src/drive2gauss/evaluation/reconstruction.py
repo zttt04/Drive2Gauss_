@@ -21,9 +21,9 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
-import prepare_query_static_mini_dataset as query_data
-import train_static_pointforward_flowtrack_multiscene as trainer
-import train_static_pointforward_stage2 as pointforward
+from drive2gauss.data import query_dataset as query_data
+from drive2gauss.training import gaussian_decoder as trainer
+from drive2gauss.training import static_decoder_pipeline as pointforward
 
 
 METRIC_NAMES = ("psnr", "ssim", "lpips", "l1")

@@ -6,8 +6,14 @@ import numpy as np
 import torch
 
 
-SCRIPT = Path(__file__).parents[1] / "tools" / "render_generated_latent_flowtrack_dataset.py"
-SPEC = importlib.util.spec_from_file_location("render_generated_latent_flowtrack_dataset", SCRIPT)
+SCRIPT = (
+    Path(__file__).parents[1]
+    / "src"
+    / "drive2gauss"
+    / "inference"
+    / "gaussian_decoder.py"
+)
+SPEC = importlib.util.spec_from_file_location("drive2gauss.inference.gaussian_decoder", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)

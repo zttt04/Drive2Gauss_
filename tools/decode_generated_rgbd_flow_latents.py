@@ -18,7 +18,7 @@ import torch.distributed as dist
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DISTT_ROOT = REPO_ROOT / "third_party" / "distt"
+DISTT_ROOT = REPO_ROOT / "src" / "drive2gauss" / "models" / "generator"
 VIEW_ORDER = (
     "CAM_FRONT_LEFT",
     "CAM_FRONT",

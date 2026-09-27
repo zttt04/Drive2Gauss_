@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+entrypoint="${repo_root}/src/drive2gauss/inference/gaussian_decoder.py"
 
 : "${TRAIN_MANIFEST:?Set TRAIN_MANIFEST}"
 : "${TRAIN_CACHE_ROOT:?Set TRAIN_CACHE_ROOT}"
@@ -11,7 +12,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 : "${GAUSSIAN_OUTPUT_ROOT:?Set GAUSSIAN_OUTPUT_ROOT}"
 
 cd "${repo_root}"
-exec python tools/render_generated_latent_flowtrack_dataset.py \
+export PYTHONPATH="${repo_root}/src${PYTHONPATH:+:${PYTHONPATH}}"
+exec python "${entrypoint}" \
   --train-manifest "${TRAIN_MANIFEST}" \
   --train-cache-root "${TRAIN_CACHE_ROOT}" \
   --val-manifest "${VAL_MANIFEST}" \

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drive2gauss"
+version = "0.1.0"
+description = "Video generation and feed-forward dynamic Gaussian reconstruction for driving scenes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["drive2gauss*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"drive2gauss.models.generator" = [
+  "configs/**/*.py",
+  "configs/**/*.yaml",
+  "requirement/*.txt",
+]

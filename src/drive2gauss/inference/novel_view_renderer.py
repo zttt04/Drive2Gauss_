@@ -34,15 +34,9 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-TOOLS = REPO_ROOT / "tools"
-for p in (TOOLS, TOOLS / "inspect"):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
-
-import train_static_pointforward_flowtrack_multiscene as ms  # noqa: E402
-import train_static_pointforward_stage2 as pointforward  # noqa: E402
-import prepare_query_static_mini_dataset as query_data  # noqa: E402
+from drive2gauss.data import query_dataset as query_data
+from drive2gauss.training import gaussian_decoder as ms
+from drive2gauss.training import static_decoder_pipeline as pointforward
 from gsplat import rasterization  # noqa: E402
 
 VIEWS6 = ["CAM_FRONT_LEFT", "CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_BACK_RIGHT", "CAM_BACK", "CAM_BACK_LEFT"]

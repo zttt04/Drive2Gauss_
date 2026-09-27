@@ -2,7 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-distt_root="${repo_root}/third_party/distt"
+generator_root="${repo_root}/src/drive2gauss/models/generator"
+entrypoint="${repo_root}/src/drive2gauss/inference/video_generator.py"
 config="${GENERATOR_INFER_CONFIG:-configs/magicdrive/test/infer_drive2gauss.py}"
 gpus="${GPUS:-8}"
 master_port="${MASTER_PORT:-29501}"
@@ -12,10 +13,11 @@ master_port="${MASTER_PORT:-29501}"
 : "${DRIVE2GAUSS_CHECKPOINT:?Set DRIVE2GAUSS_CHECKPOINT to the DiST-T checkpoint}"
 : "${DRIVE2GAUSS_INFERENCE_ROOT:?Set DRIVE2GAUSS_INFERENCE_ROOT}"
 
-cd "${distt_root}"
+cd "${generator_root}"
+export PYTHONPATH="${repo_root}/src:${generator_root}${PYTHONPATH:+:${PYTHONPATH}}"
 exec python -m torch.distributed.run \
   --standalone \
   --nproc_per_node "${gpus}" \
   --master_port "${master_port}" \
-  scripts/infer_dist_dataset_full_onlyRGB.py \
+  "${entrypoint}" \
   "${config}" "$@"
