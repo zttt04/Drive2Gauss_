@@ -153,111 +153,31 @@ The generator config reads `NUSCENES_ROOT`, `DEPTH_ROOT_JSON`, `RDEPTH_ROOT`,
 `DRIVE2GAUSS_OUTPUT_ROOT`. Set `DRIVE2GAUSS_RESUME_CHECKPOINT` when continuing
 training from a released checkpoint.
 
-## Generate RGB-D-flow latents
-
-The recommended entry point is:
+## Commands
 
 ```bash
+# Generate RGB-D-flow latents
 bash scripts/infer_generator.sh
+
+# Train or resume the generator
+bash scripts/train_generator.sh
+
+# Train the Gaussian decoder
+bash scripts/train_gaussian_decoder.sh
+
+# Reconstruct and evaluate generated latents
+bash scripts/infer_gaussian_decoder.sh --limit-clips 2
 ```
 
-Keep 17 frames, six views, RGB-D-flow decoding, and 30 sampling steps for the
-released protocol. When resuming diffusion training with a changed GPU count,
-use `reset_sampler=True`; preserve sampler state for the same world size.
-`max_train_steps` is an absolute global-step ceiling after resume.
+The Gaussian decoder uses generated flow by default; `--zero-flow-input` is
+only for ablations. Preprocessing and latent-manifest utilities are listed in
+[`tools/README.md`](tools/README.md).
 
-For a bounded generator infrastructure check, use one GPU and one step after
-setting `DRIVE2GAUSS_RESUME_CHECKPOINT`:
+## Notes
 
-```bash
-GPUS=1 bash scripts/train_generator.sh \
-  max_train_steps=3601 reset_sampler=True
-```
-
-## Decode and index generated latents
-
-```bash
-torchrun --nproc_per_node=8 tools/decode_generated_rgbd_flow_latents.py \
-  --latent-root /path/to/generated_latents \
-  --output-dir /path/to/decoded_generated_latents \
-  --vae-pretrained /path/to/pretrained/CogVideoX-2b
-
-python tools/build_generated_rgbd_flow_training_manifests.py \
-  --reference-manifest /path/to/reference_manifest.jsonl \
-  --latent-root /path/to/generated_latents \
-  --decode-root /path/to/decoded_generated_latents \
-  --output-dir /path/to/generated_dataset
-```
-
-Use each command's `--help` for naming variants emitted by a particular
-generator run.
-
-## Reconstruct and evaluate generated latents
-
-This is the canonical decoder command. It does not enable zero-flow or the
-direct-RGB experimental head:
-
-```bash
-bash scripts/infer_gaussian_decoder.sh
-```
-
-The released checkpoint predates the optional `zero_flow_input` config field.
-The loader supplies the normal value `False` in memory. It neither edits the
-checkpoint nor changes its generated flow input. Add `--limit-clips 2` for a
-bounded infrastructure check.
-
-Full-set infer-reference results over 1,976 clips / 94,848 images are PSNR
-29.90838, SSIM 0.883813, and LPIPS-Alex 0.101202. They compare the Gaussian
-render with RGB decoded from the same generated latent, not raw nuScenes RGB.
-
-## Fine-tune the Gaussian decoder
-
-The published checkpoint is already trained for generated latents. For an
-intentional fine-tune, load its model and create a fresh optimizer:
-
-```bash
-export GAUSSIAN_INIT_CHECKPOINT="${GAUSSIAN_CHECKPOINT}"
-bash scripts/train_gaussian_decoder.sh \
-  --unfreeze-backbone --lr 1e-4 --backbone-lr 1e-4
-```
-
-Gaussian decoder training constructs camera geometry and flow queries online.
-In addition to the manifests and feature caches, set the `GAUSSIAN_DATA_ROOT`,
-`GAUSSIAN_{TRAIN,VAL}_ANN_FILE`, `GAUSSIAN_{TRAIN,VAL}_FLOW_RGB_ROOT`, and
-`GAUSSIAN_{TRAIN,VAL}_FLOW_INDEX` values shown in `configs/paths.env.example`.
-The annotation split must match the source split of each manifest.
-
-`--resume-checkpoint` is only for an exact continuation with identical
-architecture, trainable modules, and optimizer groups. It is not
-interchangeable with `--init-checkpoint`.
-
-For a bounded Gaussian smoke test, reduce the query budget:
-
-```bash
-bash scripts/train_gaussian_decoder.sh \
-  --fast-dev-run \
-  --num-queries-per-frame-view 256 \
-  --max-total-queries 3072
-```
-
-## Encodings
-
-Flow PNGs are uint16 with `U=round(flow_x*64+32768)`,
-`V=round(flow_y*64+32768)`, and validity in channel three. Metric depth PNGs
-use `round(depth_m*256)`, zero for invalid pixels, and 100 m for sky.
-
-Preprocessing, latent decoding, manifest construction, flow/mask generation,
-and release exports are listed in [`tools/README.md`](tools/README.md).
-Generated data, checkpoints, logs, and videos should stay in configured
-external roots rather than being committed to this repository.
-
-## Known limitations
-
-- The two stages require separate environments because their compiled CUDA
-  dependencies are not interchangeable.
-- Full Gaussian training with 960k queries is memory-intensive; it was
-  validated on NVIDIA H20 GPUs and peaks near 81 GB.
-- CogVideoX, T5, Turbo-VAED, SEA-RAFT, Grounded SAM 2, nuScenes, and the
-  integrated DiST-T-derived generator have separate upstream terms. Review
-  [`docs/third_party_notices.md`](docs/third_party_notices.md) before public
-  redistribution.
+- The two stages require separate environments and separately licensed model
+  weights/data.
+- Do not commit checkpoints, generated data, logs, or videos.
+- See [`docs/checkpoints.md`](docs/checkpoints.md) and
+  [`docs/third_party_notices.md`](docs/third_party_notices.md) for release and
+  redistribution details.
