@@ -18,13 +18,20 @@ weights, or data.
 
 ## Environment
 
-Validated: Linux, Python 3.10, PyTorch 2.4.1+cu121, torchvision 0.19.1, and
-gsplat 1.5.3 on NVIDIA H20 GPUs. Full 960k-query decoder training peaks near
-81 GB.
+The two stages use separate environments because their CUDA extension stacks
+are not interchangeable:
+
+| Stage | Python | PyTorch stack | Important compiled dependencies |
+| --- | --- | --- | --- |
+| RGB-D-flow generator | 3.10 | 2.4.0 + CUDA 11.8 reference environment | MagicDrive-compatible ColossalAI, FlashAttention, MMCV/MMDetection |
+| Gaussian decoder | 3.10 | 2.4.1 + CUDA 12.1 | torchvision 0.19.1, gsplat 1.5.3 |
+
+The Gaussian decoder was validated on NVIDIA H20 GPUs. Full 960k-query
+decoder training peaks near 81 GB.
 
 ```bash
-conda create -n drive2gauss python=3.10 -y
-conda activate drive2gauss
+conda create -n drive2gauss-gaussian python=3.10 -y
+conda activate drive2gauss-gaussian
 pip install torch==2.4.1 torchvision==0.19.1 \
   --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
@@ -36,6 +43,43 @@ pytest -q tests
 DiST-T additionally needs its MagicDriveDiT-compatible ColossalAI fork and a
 FlashAttention build matching the local CUDA/PyTorch ABI. CogVideoX, T5,
 Turbo-VAED, SEA-RAFT, Grounded-SAM 2, and nuScenes are separately licensed.
+
+Do not install `third_party/distt/requirement/distt.txt` directly: it is an
+environment capture containing machine-local Conda URLs and mutually
+exclusive MMCV variants. Use it only as a version reference when recreating
+the DiST-T environment. In particular, the captured file contains both
+`mmcv==2.2.0` and `mmcv-full==1.7.2`; that list is provenance, not a clean pip
+lock file.
+
+## Quick start
+
+Copy the path template, edit it, and export it before using the launchers:
+
+```bash
+cp configs/paths.env.example configs/paths.env
+set -a
+source configs/paths.env
+set +a
+```
+
+The four official entry points are:
+
+```bash
+# Train and infer the RGB-D-flow video generator.
+bash scripts/train_generator.sh
+bash scripts/infer_generator.sh
+
+# Train and infer the feed-forward Gaussian decoder.
+bash scripts/train_gaussian_decoder.sh
+bash scripts/infer_gaussian_decoder.sh
+```
+
+Extra arguments are forwarded to the underlying Python entry point. For a
+bounded decoder inference check, for example:
+
+```bash
+bash scripts/infer_gaussian_decoder.sh --limit-clips 2
+```
 
 ## Files
 
@@ -56,17 +100,10 @@ The generator config reads `NUSCENES_ROOT`, `DRIVE2GAUSS_PRETRAINED_ROOT`,
 
 ## Generate RGB-D-flow latents
 
-Run from `third_party/distt`:
+The recommended entry point is:
 
 ```bash
-export NUSCENES_ROOT=/path/to/nuscenes
-export DRIVE2GAUSS_PRETRAINED_ROOT=/path/to/pretrained
-
-torchrun --nproc_per_node=8 scripts/infer_dist_dataset_full_onlyRGB.py \
-  configs/magicdrive/train/train_9-17x424x800_rgbd_flow_bbox_instance80_vehicle05_dilate12_train700.py \
-  --ckpt-path /path/to/checkpoints/drive2gauss_distt_step3600
-
-cd ../..
+bash scripts/infer_generator.sh
 ```
 
 Keep 17 frames, six views, RGB-D-flow decoding, and 30 sampling steps for the
@@ -98,14 +135,7 @@ This is the canonical decoder command. It does not enable zero-flow or the
 direct-RGB experimental head:
 
 ```bash
-torchrun --nproc_per_node=8 tools/render_generated_latent_flowtrack_dataset.py \
-  --train-manifest /path/to/manifest_train.jsonl \
-  --train-cache-root /path/to/generated_latent_rgb_4f3v_train \
-  --val-manifest /path/to/manifest_val.jsonl \
-  --val-cache-root /path/to/generated_latent_rgbd_flow_full_val \
-  --checkpoint /path/to/checkpoints/drive2gauss_feature_unet_step3744.pt \
-  --output-dir outputs/feature_unet_step3744_eval \
-  --torch-extensions-root /tmp/drive2gauss_gsplat_extensions
+bash scripts/infer_gaussian_decoder.sh
 ```
 
 The released checkpoint predates the optional `zero_flow_input` config field.
@@ -123,17 +153,9 @@ The published checkpoint is already trained for generated latents. For an
 intentional fine-tune, load its model and create a fresh optimizer:
 
 ```bash
-torchrun --nproc_per_node=8 tools/train_static_pointforward_flowtrack_multiscene.py \
-  --train-manifest /path/to/manifest_train.jsonl \
-  --train-cache-root /path/to/generated_latent_rgb_4f3v_train \
-  --val-manifest /path/to/manifest_val.jsonl \
-  --val-cache-root /path/to/generated_latent_rgbd_flow_full_val \
-  --init-checkpoint /path/to/checkpoints/drive2gauss_feature_unet_step3744.pt \
-  --appearance-mode feature_unet --unfreeze-backbone \
-  --num-queries-per-frame-view 80000 --max-total-queries 960000 \
-  --lr 1e-4 --backbone-lr 1e-4 \
-  --output-dir outputs/feature_unet_generated_latent_finetune \
-  --checkpoint-dir checkpoints/feature_unet_generated_latent_finetune
+export GAUSSIAN_INIT_CHECKPOINT="${GAUSSIAN_CHECKPOINT}"
+bash scripts/train_gaussian_decoder.sh \
+  --unfreeze-backbone --lr 1e-4 --backbone-lr 1e-4
 ```
 
 `--resume-checkpoint` is only for an exact continuation with identical

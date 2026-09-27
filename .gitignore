@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .venv/
+configs/paths.env
 
 data/
 pretrained/
@@ -17,4 +18,3 @@ wandb/
 *.bin
 *.npz
 *.mp4
-
