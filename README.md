@@ -44,8 +44,8 @@ The official Gaussian decoder consumes generated flow normally. Do not pass
 `--zero-flow-input`; that flag exists only for ablations. Direct-RGB
 experiments are not part of the released result.
 
-See [CHECKPOINTS.md](CHECKPOINTS.md) for checkpoint identity and metrics and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before redistributing code,
+See [docs/checkpoints.md](docs/checkpoints.md) for checkpoint identity and metrics and
+[docs/third_party_notices.md](docs/third_party_notices.md) before redistributing code,
 weights, or data.
 
 ## Environment

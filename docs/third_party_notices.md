@@ -17,4 +17,4 @@ software.
 
 Users must download external datasets and pretrained weights themselves and
 accept the corresponding terms. The development origin of the integrated
-generator is documented separately in [GENERATOR_ORIGIN.md](GENERATOR_ORIGIN.md).
+generator is documented separately in [generator_origin.md](generator_origin.md).
