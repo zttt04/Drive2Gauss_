@@ -52,18 +52,10 @@ See [docs/checkpoints.md](docs/checkpoints.md) for checkpoint identity and metri
 [docs/third_party_notices.md](docs/third_party_notices.md) before redistributing code,
 weights, or data.
 
-## Environment
+## Installation
 
-The two stages use separate environments because their CUDA extension stacks
-are not interchangeable:
-
-| Stage | Python | PyTorch stack | Important compiled dependencies |
-| --- | --- | --- | --- |
-| RGB-D-flow generator | 3.10 | 2.4.0 + CUDA 11.8 reference environment | MagicDrive-compatible ColossalAI, FlashAttention, MMCV/MMDetection |
-| Gaussian decoder | 3.10 | 2.4.1 + CUDA 12.1 | torchvision 0.19.1, gsplat 1.5.3 |
-
-The Gaussian decoder was validated on NVIDIA H20 GPUs. Full 960k-query
-decoder training peaks near 81 GB.
+The Gaussian decoder uses Python 3.10, PyTorch 2.4.1, CUDA 12.1, and gsplat
+1.5.3. The generator uses a separate MagicDrive/DiST-T-compatible environment.
 
 ```bash
 conda create -n drive2gauss-gaussian python=3.10 -y
@@ -77,16 +69,8 @@ python -m compileall -q src/drive2gauss tools
 pytest -q tests
 ```
 
-DiST-T additionally needs its MagicDriveDiT-compatible ColossalAI fork and a
-FlashAttention build matching the local CUDA/PyTorch ABI. CogVideoX, T5,
-Turbo-VAED, SEA-RAFT, Grounded-SAM 2, and nuScenes are separately licensed.
-
-Do not install `src/drive2gauss/models/generator/requirement/distt.txt` directly: it is an
-environment capture containing machine-local Conda URLs and mutually
-exclusive MMCV variants. Use it only as a version reference when recreating
-the DiST-T environment. In particular, the captured file contains both
-`mmcv==2.2.0` and `mmcv-full==1.7.2`; that list is provenance, not a clean pip
-lock file.
+The generator requirement file is an environment reference, not a portable
+lock file; install its compiled dependencies according to the target server.
 
 ## Quick start
 
@@ -99,42 +83,14 @@ source configs/paths.env
 set +a
 ```
 
-The path template has four groups of settings:
+Edit the template with your local nuScenes, pretrained model, checkpoint,
+manifest, cache, annotation, flow-index, and output paths. Gaussian training
+also requires the online-query paths beginning with `GAUSSIAN_`.
 
-| Group | Variables | Used by |
-| --- | --- | --- |
-| nuScenes geometry | `NUSCENES_ROOT`, `DEPTH_ROOT_JSON`, `RDEPTH_ROOT` | generator and Gaussian online queries |
-| generator | `DRIVE2GAUSS_PRETRAINED_ROOT`, `DRIVE2GAUSS_CHECKPOINT`, `DRIVE2GAUSS_LATENT_MANIFESTS` | generator train/inference |
-| Gaussian latent data | `TRAIN_MANIFEST`, `TRAIN_CACHE_ROOT`, `VAL_MANIFEST`, `VAL_CACHE_ROOT` | Gaussian train/inference |
-| Gaussian online queries | `GAUSSIAN_DATA_ROOT`, annotation files, flow RGB roots, flow-index files | Gaussian training |
+The launchers set `PYTHONPATH` and call the reorganized `src/` entry points.
+Extra arguments are forwarded to the underlying Python entry points.
 
-Gaussian training constructs camera geometry and flow queries online, so the
-`GAUSSIAN_*` annotation, flow-root, and flow-index variables are required. The
-annotation split must match the source split of each latent manifest.
-
-The four official entry points are:
-
-```bash
-# Train and infer the RGB-D-flow video generator.
-bash scripts/train_generator.sh
-bash scripts/infer_generator.sh
-
-# Train and infer the feed-forward Gaussian decoder.
-bash scripts/train_gaussian_decoder.sh
-bash scripts/infer_gaussian_decoder.sh
-```
-
-The launchers set `PYTHONPATH` and call the reorganized `src/` entry points;
-users should not call the old `tools/train_*` or `tools/render_*` paths.
-
-Extra arguments are forwarded to the underlying Python entry point. For a
-bounded decoder inference check, for example:
-
-```bash
-bash scripts/infer_gaussian_decoder.sh --limit-clips 2
-```
-
-## Files
+## Required files
 
 ```text
 pretrained/CogVideoX-2b/
@@ -147,11 +103,6 @@ data/manifest_val.jsonl
 data/generated_latent_rgb_4f3v_train/
 data/generated_latent_rgbd_flow_full_val/
 ```
-
-The generator config reads `NUSCENES_ROOT`, `DEPTH_ROOT_JSON`, `RDEPTH_ROOT`,
-`DRIVE2GAUSS_PRETRAINED_ROOT`, `DRIVE2GAUSS_LATENT_MANIFESTS`, and
-`DRIVE2GAUSS_OUTPUT_ROOT`. Set `DRIVE2GAUSS_RESUME_CHECKPOINT` when continuing
-training from a released checkpoint.
 
 ## Commands
 
