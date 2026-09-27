@@ -1,14 +1,18 @@
 # Drive2Gauss
 
-Drive2Gauss generates six-view RGB-D-flow video latents and reconstructs them
-as a feed-forward dynamic Gaussian scene:
+Drive2Gauss is a two-stage driving-scene pipeline. It generates six-view
+RGB-D-flow video latents from nuScenes context, then decodes them as a
+feed-forward dynamic Gaussian scene for reconstruction and novel-view
+rendering:
 
 ```text
 nuScenes context -> DiST-T RGB-D-flow latent -> decoded RGB-D-flow
                  -> feature-UNet Gaussian decoder -> rendered views
 ```
 
-The two core model stages live together under `src/drive2gauss/models/`:
+The released protocol uses 17 frames, six cameras, 424x800 resolution, and
+RGB, metric depth, and masked optical-flow modalities. The two core model
+stages live together under `src/drive2gauss/models/`:
 `generator/` contains the integrated RGB-D-flow video generator, while the
 Gaussian decoder is defined in the adjacent Python modules. Training,
 inference, rendering, data loading, and evaluation live in their corresponding
@@ -95,6 +99,19 @@ source configs/paths.env
 set +a
 ```
 
+The path template has four groups of settings:
+
+| Group | Variables | Used by |
+| --- | --- | --- |
+| nuScenes geometry | `NUSCENES_ROOT`, `DEPTH_ROOT_JSON`, `RDEPTH_ROOT` | generator and Gaussian online queries |
+| generator | `DRIVE2GAUSS_PRETRAINED_ROOT`, `DRIVE2GAUSS_CHECKPOINT`, `DRIVE2GAUSS_LATENT_MANIFESTS` | generator train/inference |
+| Gaussian latent data | `TRAIN_MANIFEST`, `TRAIN_CACHE_ROOT`, `VAL_MANIFEST`, `VAL_CACHE_ROOT` | Gaussian train/inference |
+| Gaussian online queries | `GAUSSIAN_DATA_ROOT`, annotation files, flow RGB roots, flow-index files | Gaussian training |
+
+Gaussian training constructs camera geometry and flow queries online, so the
+`GAUSSIAN_*` annotation, flow-root, and flow-index variables are required. The
+annotation split must match the source split of each latent manifest.
+
 The four official entry points are:
 
 ```bash
@@ -106,6 +123,9 @@ bash scripts/infer_generator.sh
 bash scripts/train_gaussian_decoder.sh
 bash scripts/infer_gaussian_decoder.sh
 ```
+
+The launchers set `PYTHONPATH` and call the reorganized `src/` entry points;
+users should not call the old `tools/train_*` or `tools/render_*` paths.
 
 Extra arguments are forwarded to the underlying Python entry point. For a
 bounded decoder inference check, for example:
@@ -145,6 +165,14 @@ Keep 17 frames, six views, RGB-D-flow decoding, and 30 sampling steps for the
 released protocol. When resuming diffusion training with a changed GPU count,
 use `reset_sampler=True`; preserve sampler state for the same world size.
 `max_train_steps` is an absolute global-step ceiling after resume.
+
+For a bounded generator infrastructure check, use one GPU and one step after
+setting `DRIVE2GAUSS_RESUME_CHECKPOINT`:
+
+```bash
+GPUS=1 bash scripts/train_generator.sh \
+  max_train_steps=3601 reset_sampler=True
+```
 
 ## Decode and index generated latents
 
@@ -203,8 +231,33 @@ The annotation split must match the source split of each manifest.
 architecture, trainable modules, and optimizer groups. It is not
 interchangeable with `--init-checkpoint`.
 
+For a bounded Gaussian smoke test, reduce the query budget:
+
+```bash
+bash scripts/train_gaussian_decoder.sh \
+  --fast-dev-run \
+  --num-queries-per-frame-view 256 \
+  --max-total-queries 3072
+```
+
 ## Encodings
 
 Flow PNGs are uint16 with `U=round(flow_x*64+32768)`,
 `V=round(flow_y*64+32768)`, and validity in channel three. Metric depth PNGs
 use `round(depth_m*256)`, zero for invalid pixels, and 100 m for sky.
+
+Preprocessing, latent decoding, manifest construction, flow/mask generation,
+and release exports are listed in [`tools/README.md`](tools/README.md).
+Generated data, checkpoints, logs, and videos should stay in configured
+external roots rather than being committed to this repository.
+
+## Known limitations
+
+- The two stages require separate environments because their compiled CUDA
+  dependencies are not interchangeable.
+- Full Gaussian training with 960k queries is memory-intensive; it was
+  validated on NVIDIA H20 GPUs and peaks near 81 GB.
+- CogVideoX, T5, Turbo-VAED, SEA-RAFT, Grounded SAM 2, nuScenes, and the
+  integrated DiST-T-derived generator have separate upstream terms. Review
+  [`docs/third_party_notices.md`](docs/third_party_notices.md) before public
+  redistribution.
