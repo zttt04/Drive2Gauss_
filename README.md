@@ -1,71 +1,37 @@
 # Drive2Gauss
 
-[![Checkpoints](https://img.shields.io/badge/Checkpoints-Google%20Drive-4285F4?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c)
-[![Dataset](https://img.shields.io/badge/Dataset-Google%20Drive-34A853?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ)
+> **TL;DR:** Drive2Gauss converts jointly generated multiview RGB, metric depth, and dynamic flow into a dynamic Gaussian scene in one feed-forward pass, enabling reconstruction and novel-view rendering.
 
-Drive2Gauss is a two-stage driving-scene pipeline. It generates six-view
-RGB-D-flow video latents from nuScenes context, then decodes them as a
-feed-forward dynamic Gaussian scene for reconstruction and novel-view
-rendering:
+[Project Page](https://zttt04.github.io/Drive2Gauss_page/) | [Code](https://github.com/zttt04/Drive2Gauss_) | [Checkpoints](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c) | [Dataset](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ) | [Mini-sample](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1)
 
 ```text
-nuScenes context -> DiST-T RGB-D-flow latent -> decoded RGB-D-flow
+nuScenes context -> DiST-T RGB-D-flow video latents -> decoded RGB-D-flow
                  -> feature-UNet Gaussian decoder -> rendered views
 ```
 
-The released protocol uses 17 frames, six cameras, 424x800 resolution, and
-RGB, metric depth, and masked optical-flow modalities. The two core model
-stages live together under `src/drive2gauss/models/`:
-`generator/` contains the integrated RGB-D-flow video generator, while the
-Gaussian decoder is defined in the adjacent Python modules. Training,
-inference, rendering, data loading, and evaluation live in their corresponding
-`src/drive2gauss/` packages. The top-level `scripts/` directory contains only
-thin user entry points, while `tools/` is reserved for preprocessing and
-artifact export.
-
-The Gaussian decoder architecture is defined independently from its training
-loop:
-
-```text
-src/drive2gauss/models/gaussian_modules.py
-    StaticPointForwardModel, FeatureRenderUNet, and Gaussian rendering primitives
-
-src/drive2gauss/models/gaussian_decoder.py
-    Drive2GaussGaussianDecoder
-
-src/drive2gauss/models/generator/
-    RGB-D-flow video generator
-```
-
-The remaining source layout is:
-
-```text
-src/drive2gauss/data/          datasets, latent caches, and query sampling
-src/drive2gauss/training/      generator and Gaussian-decoder training loops
-src/drive2gauss/inference/     video generation, reconstruction, and novel views
-src/drive2gauss/rendering/     time-dependent gsplat rendering
-src/drive2gauss/evaluation/    reconstruction metrics and full-set evaluation
-```
-
-The official Gaussian decoder consumes generated flow normally. Do not pass
-`--zero-flow-input`; that flag exists only for ablations. Direct-RGB
+The released protocol uses 17 frames, six cameras, 424 × 800 resolution, and
+RGB, metric depth, and masked optical flow. The Gaussian decoder normally uses
+the generated flow; `--zero-flow-input` is only for ablations. Direct-RGB
 experiments are not part of the released result.
 
-See [docs/checkpoints.md](docs/checkpoints.md) for checkpoint identity and metrics,
-[docs/dataset.md](docs/dataset.md) for dataset contents and access status, and
-[docs/third_party_notices.md](docs/third_party_notices.md) before redistributing
-code, weights, or data.
+## Downloads
 
-## Released resources
+| Resource | Contents | Download / details |
+| --- | --- | --- |
+| Checkpoints | Generator EMA and Gaussian decoder weights | [Google Drive](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c) · [files, hashes, and metrics](docs/checkpoints.md) |
+| Dataset | 700-scene flow/mask release; depth-shard completeness is unverified | [Google Drive](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ) · [contents and status](docs/dataset.md) |
+| Mini-sample | One-clip, input-only sample (78 MB) | [GitHub Release](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1) · nuScenes terms apply |
 
-- **Checkpoints:** [Google Drive folder](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c). Google sign-in may be required; see [checkpoint details](docs/checkpoints.md).
-- **Dataset:** [Google Drive folder](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ). The 700-scene flow/mask shards are available; depth-shard completeness is not yet verified. See [dataset details](docs/dataset.md).
-- **Mini-sample:** [Download the one-clip input sample](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1) (78 MB; nuScenes terms apply).
+Google sign-in may be required to access the Drive folders. The GitHub release
+contains one 17-frame, six-camera clip with RGB, depth, flow, masks, minimal
+annotations, map cache, and a relative-path manifest. It does not include
+generated latents or runtime feature caches.
 
-## Installation
+## Environment setup
 
 The Gaussian decoder uses Python 3.10, PyTorch 2.4.1, CUDA 12.1, and gsplat
-1.5.3. The generator uses a separate MagicDrive/DiST-T-compatible environment.
+1.5.3. The generator requires a separate MagicDrive/DiST-T-compatible
+environment.
 
 ```bash
 conda create -n drive2gauss-gaussian python=3.10 -y
@@ -80,11 +46,11 @@ pytest -q tests
 ```
 
 The generator requirement file is an environment reference, not a portable
-lock file; install its compiled dependencies according to the target server.
+lock file. Install compiled dependencies according to the target server.
 
 ## Quick start
 
-Copy the path template, edit it, and export it before using the launchers:
+Copy the path template, edit it for your machine, then export its values:
 
 ```bash
 cp configs/paths.env.example configs/paths.env
@@ -93,32 +59,17 @@ source configs/paths.env
 set +a
 ```
 
-Edit the template with your local nuScenes, pretrained model, checkpoint,
-dataset, annotation, and output paths. Set `DRIVE2GAUSS_DATASET_ROOT` to the
+Set the local nuScenes, pretrained-model, checkpoint, dataset, annotation, and
+output paths in `configs/paths.env`. Set `DRIVE2GAUSS_DATASET_ROOT` to the
 downloaded data release; its JSONL manifests use paths relative to this root.
-Legacy absolute-path manifests and pre-rendered flow-index datasets remain
-supported.
+Legacy absolute-path manifests and pre-rendered flow-index datasets are also
+supported. The launchers set `PYTHONPATH` and forward extra arguments to their
+Python entry points.
 
-The launchers set `PYTHONPATH` and call the reorganized `src/` entry points.
-Extra arguments are forwarded to the underlying Python entry points.
+### Run the mini-sample
 
-## Required files
-
-```text
-pretrained/CogVideoX-2b/
-pretrained/t5-v1_1-xxl/
-pretrained/Turbo-VAED-Cog.pth
-checkpoints/drive2gauss_step3600/ema.pt
-checkpoints/drive2gauss_feature_unet_step3744.pt
-data/manifest_train.jsonl
-data/manifest_val.jsonl
-data/generated_latent_rgb_4f3v_train/
-data/generated_latent_rgbd_flow_full_val/
-```
-
-For the one-clip mini-sample, download and extract the
-[release archive](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1),
-then point the two data roots at the extracted tree:
+Download and extract the [one-clip sample](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1),
+then point the data roots at the extracted directory:
 
 ```bash
 export DRIVE2GAUSS_DATASET_ROOT=/path/to/drive2gauss_sample
@@ -126,14 +77,8 @@ export NUSCENES_ROOT="${DRIVE2GAUSS_DATASET_ROOT}/nuscenes"
 export DRIVE2GAUSS_LATENT_MANIFESTS=
 ```
 
-This input-only archive contains RGB/depth/flow/mask data, annotations, and map
-caches, but no generated latents or runtime feature caches. The sample reader
-supports its relative paths and uint16 depth/flow files. See
-[`docs/dataset.md`](docs/dataset.md) for contents and nuScenes terms.
-
 With the released generator checkpoint and pretrained CogVideoX/T5 weights
-configured in `configs/paths.env`, generate one 17-frame sample and decode its
-RGB/depth/flow outputs:
+configured in `configs/paths.env`, generate and decode one 17-frame sample:
 
 ```bash
 GPUS=1 bash scripts/infer_generator.sh --cfg-options 'validation_index=[0]' num_frames=17
@@ -144,21 +89,13 @@ python tools/decode_generated_rgbd_flow_latents.py \
   --max-latents 1 --fast-dev-run
 ```
 
-This is an inference smoke test; the archive intentionally does not bundle
-generated latents or Gaussian feature caches. Gaussian-decoder evaluation
-requires those outputs plus the separately released Gaussian checkpoint.
+This is an inference smoke test. The archive does not bundle generated
+latents or Gaussian feature caches; evaluating the Gaussian decoder requires
+those outputs and the separately released Gaussian checkpoint. The sample
+reader supports relative paths and uint16 depth/flow files. See
+[`docs/dataset.md`](docs/dataset.md) for its contents and nuScenes terms.
 
-The portable preprocessing release is organized as:
-
-```text
-data/
-  manifest.jsonl
-  depth/<scene>/<camera>/depth_<frame>.png
-  flow_source/<scene>/<camera>/flow/flow_arrays/flow_<frame>.png
-  masks/<scene>/<camera>/sam/masks/dynamic_object_mask_<frame>.png
-```
-
-## Commands
+## Training and inference
 
 ```bash
 # Generate RGB-D-flow latents
@@ -174,16 +111,60 @@ bash scripts/train_gaussian_decoder.sh
 bash scripts/infer_gaussian_decoder.sh --limit-clips 2
 ```
 
-The Gaussian decoder uses generated flow by default; `--zero-flow-input` is
-only for ablations. Preprocessing and latent-manifest utilities are listed in
+The decoder uses generated flow by default; `--zero-flow-input` is only for
+ablations. Preprocessing and latent-manifest utilities are documented in
 [`tools/README.md`](tools/README.md).
 
-## Notes
+## Data and checkpoint layout
 
-- The two stages require separate environments and separately licensed model
-  weights/data. nuScenes data and derived artifacts are subject to the
-  [nuScenes terms](https://www.nuscenes.org/terms-of-use).
-- Do not commit checkpoints, generated data, logs, or videos.
-- See [`docs/checkpoints.md`](docs/checkpoints.md) and
-  [`docs/third_party_notices.md`](docs/third_party_notices.md) for release and
-  redistribution details.
+For the full pipeline, configure these files and directories in
+`configs/paths.env`:
+
+```text
+pretrained/CogVideoX-2b/
+pretrained/t5-v1_1-xxl/
+pretrained/Turbo-VAED-Cog.pth
+checkpoints/drive2gauss_step3600/ema.pt
+checkpoints/drive2gauss_feature_unet_step3744.pt
+data/manifest_train.jsonl
+data/manifest_val.jsonl
+data/generated_latent_rgb_4f3v_train/
+data/generated_latent_rgbd_flow_full_val/
+```
+
+The portable preprocessing release is organized as:
+
+```text
+data/
+  manifest.jsonl
+  depth/<scene>/<camera>/depth_<frame>.png
+  flow_source/<scene>/<camera>/flow/flow_arrays/flow_<frame>.png
+  masks/<scene>/<camera>/sam/masks/dynamic_object_mask_<frame>.png
+```
+
+The Gaussian decoder architecture is separate from its training loop:
+
+```text
+src/drive2gauss/models/gaussian_modules.py
+    StaticPointForwardModel, FeatureRenderUNet, and Gaussian rendering primitives
+src/drive2gauss/models/gaussian_decoder.py
+    Drive2GaussGaussianDecoder
+src/drive2gauss/models/generator/
+    RGB-D-flow video generator
+```
+
+The remaining packages contain data loading and query sampling, training,
+inference, time-dependent gsplat rendering, and evaluation. See
+[`docs/checkpoints.md`](docs/checkpoints.md) for checkpoint hashes and
+reference metrics, and [`docs/dataset.md`](docs/dataset.md) for the data
+inventory and release status.
+
+## License and terms
+
+The repository's BSD-3-Clause license covers original code only. Model
+weights, external software, nuScenes data, and derived artifacts remain
+subject to their respective terms. nuScenes data and the mini-sample are
+subject to the [nuScenes terms of use](https://www.nuscenes.org/terms-of-use).
+Read [`docs/third_party_notices.md`](docs/third_party_notices.md) before
+redistributing code, weights, or data. Do not commit checkpoints, generated
+data, logs, or videos.
