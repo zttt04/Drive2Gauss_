@@ -4,6 +4,20 @@
 
 [Project Page](https://zttt04.github.io/Drive2Gauss_page/) | [Code](https://github.com/zttt04/Drive2Gauss_) | [Checkpoints](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c) | [Dataset](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ) | [Mini-sample](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1)
 
+<p align="center">
+Tong Zhao<sup>1,2</sup>, Zhiyuan Han<sup>2</sup>, Lin Chen<sup>3</sup>, Bowen Xie<sup>4</sup>,<br>
+Yunxi Qiao<sup>5</sup>, Bohan Li<sup>6</sup>, Weiqing Xiao<sup>7</sup>, Gen Li<sup>8</sup>,<br>
+Shu Han<sup>9</sup>, Xuyang Dai<sup>10</sup>, Cheng Bi<sup>10</sup>, Hao Zhao<sup>1</sup>,<br>
+Chaojian Li<sup>11,†</sup>
+</p>
+
+<p align="center">
+<sup>1</sup> AIR, Tsinghua University · <sup>2</sup> Tongji University · <sup>3</sup> Beijing Technology and Business University · <sup>4</sup> Fuzhou University<br>
+<sup>5</sup> Tsinghua University · <sup>6</sup> Shanghai Jiao Tong University · <sup>7</sup> Nanjing University · <sup>8</sup> Zhejiang University<br>
+<sup>9</sup> University of Wisconsin–Madison · <sup>10</sup> Great Wall Motor · <sup>11</sup> The Hong Kong University of Science and Technology<br>
+<sup>†</sup> Corresponding author
+</p>
+
 ```text
 nuScenes context -> DiST-T RGB-D-flow video latents -> decoded RGB-D-flow
                  -> feature-UNet Gaussian decoder -> rendered views
