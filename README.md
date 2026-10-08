@@ -48,9 +48,15 @@ The official Gaussian decoder consumes generated flow normally. Do not pass
 `--zero-flow-input`; that flag exists only for ablations. Direct-RGB
 experiments are not part of the released result.
 
-See [docs/checkpoints.md](docs/checkpoints.md) for checkpoint identity and metrics and
-[docs/third_party_notices.md](docs/third_party_notices.md) before redistributing code,
-weights, or data.
+See [docs/checkpoints.md](docs/checkpoints.md) for checkpoint identity and metrics,
+[docs/dataset.md](docs/dataset.md) for dataset contents and access status, and
+[docs/third_party_notices.md](docs/third_party_notices.md) before redistributing
+code, weights, or data.
+
+## Released resources
+
+- **Checkpoints:** [Google Drive folder](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c). Google sign-in may be required; see [checkpoint details](docs/checkpoints.md).
+- **Dataset:** [Google Drive folder](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ). The 700-scene flow/mask shards are available; depth-shard completeness is not yet verified. See [dataset details](docs/dataset.md).
 
 ## Installation
 
@@ -96,7 +102,7 @@ Extra arguments are forwarded to the underlying Python entry points.
 pretrained/CogVideoX-2b/
 pretrained/t5-v1_1-xxl/
 pretrained/Turbo-VAED-Cog.pth
-checkpoints/drive2gauss_distt_step3600/
+checkpoints/drive2gauss_distt_step3600/ema.pt
 checkpoints/drive2gauss_feature_unet_step3744.pt
 data/manifest_train.jsonl
 data/manifest_val.jsonl
@@ -127,7 +133,8 @@ only for ablations. Preprocessing and latent-manifest utilities are listed in
 ## Notes
 
 - The two stages require separate environments and separately licensed model
-  weights/data.
+  weights/data. nuScenes data and derived artifacts are subject to the
+  [nuScenes terms](https://www.nuscenes.org/terms-of-use).
 - Do not commit checkpoints, generated data, logs, or videos.
 - See [`docs/checkpoints.md`](docs/checkpoints.md) and
   [`docs/third_party_notices.md`](docs/third_party_notices.md) for release and
