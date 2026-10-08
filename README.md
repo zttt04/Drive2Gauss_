@@ -28,6 +28,22 @@ RGB, metric depth, and masked optical flow. The Gaussian decoder normally uses
 the generated flow; `--zero-flow-input` is only for ablations. Direct-RGB
 experiments are not part of the released result.
 
+## Method
+
+![Drive2Gauss method overview](https://zttt04.github.io/Drive2Gauss_page/static/images/method_overview.png)
+
+Drive2Gauss is a feed-forward, two-stage framework:
+
+1. **Multimodal video generation.** Given reference multi-view images and
+   future control signals, the generator jointly predicts six-view RGB,
+   metric depth, and dynamic flow.
+2. **Gaussian query decoding.** Depth initializes sparse 3D queries, while
+   generated flow associates queries across time. Spatiotemporal feature
+   aggregation and iterative query refinement produce a dynamic 4D Gaussian
+   scene directly, without per-scene optimization.
+
+The resulting scene can be reconstructed and rendered from novel viewpoints.
+
 ## Downloads
 
 | Resource | Contents | Download / details |
