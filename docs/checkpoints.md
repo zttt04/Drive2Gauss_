@@ -8,7 +8,7 @@ access depends on the folder's sharing settings.
 
 | Stage | Published filename | Purpose |
 | --- | --- | --- |
-| Multimodal diffusion EMA | `drive2gauss_distt_step3600_ema.pt` (8,154,303,318 bytes; SHA256 `255bbd0a9dba345291de61db59cb45c5dfedc67a049e1a2e990c60fe7c62b6b8`) | Generate 17-frame, six-view RGB-D-flow latents |
+| Multimodal diffusion EMA | `drive2gauss_step3600_ema.pt` (8,154,303,318 bytes; SHA256 `255bbd0a9dba345291de61db59cb45c5dfedc67a049e1a2e990c60fe7c62b6b8`) | Generate 17-frame, six-view RGB-D-flow latents |
 | Gaussian decoder | `drive2gauss_feature_unet_step3744.pt` (4,471,940 bytes; SHA256 `52b788deaf2c7dbb62e297faa4f9e99dce3de321cb5c453cfc767605d5416502`) | Decode generated RGB-D-flow latents into dynamic Gaussians and render RGB |
 
 Only the generator EMA weights are in the released file; the complete training
@@ -16,7 +16,7 @@ state and optimizer state are not part of this download. CogVideoX, T5, and
 other separately licensed pretrained assets must be obtained from their
 upstream sources. For the directory layout in `configs/paths.env.example`,
 place the downloaded generator file at
-`checkpoints/drive2gauss_distt_step3600/ema.pt`.
+`checkpoints/drive2gauss_step3600/ema.pt`.
 
 The Gaussian decoder is the feature-UNet checkpoint trained for generated
 latents. It uses four contiguous windows starting at frames 0, 4, 8, and 12,

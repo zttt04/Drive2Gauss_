@@ -1,5 +1,8 @@
 # Drive2Gauss
 
+[![Checkpoints](https://img.shields.io/badge/Checkpoints-Google%20Drive-4285F4?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c)
+[![Dataset](https://img.shields.io/badge/Dataset-Google%20Drive-34A853?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ)
+
 Drive2Gauss is a two-stage driving-scene pipeline. It generates six-view
 RGB-D-flow video latents from nuScenes context, then decodes them as a
 feed-forward dynamic Gaussian scene for reconstruction and novel-view
@@ -105,7 +108,7 @@ Extra arguments are forwarded to the underlying Python entry points.
 pretrained/CogVideoX-2b/
 pretrained/t5-v1_1-xxl/
 pretrained/Turbo-VAED-Cog.pth
-checkpoints/drive2gauss_distt_step3600/ema.pt
+checkpoints/drive2gauss_step3600/ema.pt
 checkpoints/drive2gauss_feature_unet_step3744.pt
 data/manifest_train.jsonl
 data/manifest_val.jsonl
