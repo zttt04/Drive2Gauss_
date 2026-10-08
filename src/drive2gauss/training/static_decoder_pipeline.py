@@ -18,6 +18,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from drive2gauss.data import manifest as dataset_manifest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -127,11 +129,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def read_manifest_row(path: Path, index: int) -> dict:
-    with path.open("r", encoding="utf-8") as stream:
-        for row_index, line in enumerate(stream):
-            if row_index == index:
-                return json.loads(line)
-    raise IndexError(f"Manifest {path} does not contain row {index}")
+    rows = dataset_manifest.read_jsonl(path)
+    if index < 0 or index >= len(rows):
+        raise IndexError(f"Manifest {path} does not contain row {index}")
+    return rows[index]
 
 
 def view_to_index(view: str) -> int:

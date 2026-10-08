@@ -91,8 +91,10 @@ set +a
 ```
 
 Edit the template with your local nuScenes, pretrained model, checkpoint,
-manifest, cache, annotation, flow-index, and output paths. Gaussian training
-also requires the online-query paths beginning with `GAUSSIAN_`.
+dataset, annotation, and output paths. Set `DRIVE2GAUSS_DATASET_ROOT` to the
+downloaded data release; its JSONL manifests use paths relative to this root.
+Legacy absolute-path manifests and pre-rendered flow-index datasets remain
+supported.
 
 The launchers set `PYTHONPATH` and call the reorganized `src/` entry points.
 Extra arguments are forwarded to the underlying Python entry points.
@@ -109,6 +111,48 @@ data/manifest_train.jsonl
 data/manifest_val.jsonl
 data/generated_latent_rgb_4f3v_train/
 data/generated_latent_rgbd_flow_full_val/
+```
+
+For the one-clip mini-sample, download and extract the
+[release archive](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1),
+then point the two data roots at the extracted tree:
+
+```bash
+export DRIVE2GAUSS_DATASET_ROOT=/path/to/drive2gauss_sample
+export NUSCENES_ROOT="${DRIVE2GAUSS_DATASET_ROOT}/nuscenes"
+export DRIVE2GAUSS_LATENT_MANIFESTS=
+```
+
+This input-only archive contains RGB/depth/flow/mask data, annotations, and map
+caches, but no generated latents or runtime feature caches. The sample reader
+supports its relative paths and uint16 depth/flow files. See
+[`docs/dataset.md`](docs/dataset.md) for contents and nuScenes terms.
+
+With the released generator checkpoint and pretrained CogVideoX/T5 weights
+configured in `configs/paths.env`, generate one 17-frame sample and decode its
+RGB/depth/flow outputs:
+
+```bash
+GPUS=1 bash scripts/infer_generator.sh --cfg-options 'validation_index=[0]' num_frames=17
+python tools/decode_generated_rgbd_flow_latents.py \
+  --latent-root "${DRIVE2GAUSS_INFERENCE_ROOT}" \
+  --output-dir "${DRIVE2GAUSS_DATASET_ROOT}/runtime/decoded" \
+  --vae-pretrained "${DRIVE2GAUSS_PRETRAINED_ROOT}/CogVideoX-2b" \
+  --max-latents 1 --fast-dev-run
+```
+
+This is an inference smoke test; the archive intentionally does not bundle
+generated latents or Gaussian feature caches. Gaussian-decoder evaluation
+requires those outputs plus the separately released Gaussian checkpoint.
+
+The portable preprocessing release is organized as:
+
+```text
+data/
+  manifest.jsonl
+  depth/<scene>/<camera>/depth_<frame>.png
+  flow_source/<scene>/<camera>/flow/flow_arrays/flow_<frame>.png
+  masks/<scene>/<camera>/sam/masks/dynamic_object_mask_<frame>.png
 ```
 
 ## Commands

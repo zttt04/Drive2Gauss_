@@ -22,6 +22,7 @@ import torch
 import torch.distributed as dist
 
 from drive2gauss.data import query_dataset as query_data
+from drive2gauss.data import manifest as dataset_manifest
 from drive2gauss.training import gaussian_decoder as trainer
 from drive2gauss.training import static_decoder_pipeline as pointforward
 
@@ -95,10 +96,7 @@ def distributed_context() -> tuple[int, int, int, torch.device]:
 
 
 def read_manifest(path: Path) -> list[dict[str, Any]]:
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
-    for index, row in enumerate(rows):
-        row.setdefault("manifest_index", index)
-    return rows
+    return dataset_manifest.read_jsonl(path)
 
 
 def write_run_files(

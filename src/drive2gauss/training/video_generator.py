@@ -2717,6 +2717,12 @@ def main():
 
                         x = rearrange(x, "B T NC C ... -> (B NC) C T ...")  # BxNC, C, T, H, W
                         Rdepth = rearrange(Rdepth, "B T NC C ... -> (B NC) C T ...")  # BxNC, C, T, H, W
+                        flow_video = None
+                        if "flow" in latent_modalities:
+                            flow_video = batch.pop("flow_rgb_values").to(device, dtype)
+                            flow_video = rearrange(
+                                flow_video, "B T NC C ... -> (B NC) C T ..."
+                            )
                     else:
                         batch.pop("pixel_values")
                         batch.pop("refine_depths", None)
@@ -2779,11 +2785,17 @@ def main():
                                                get_sequence_parallel_group())
                                     Rdepth = sp_vae(Rdepth, vae.encode,
                                                get_sequence_parallel_group())
+                                    if flow_video is not None:
+                                        flow_latent = sp_vae(
+                                            flow_video, vae.encode,
+                                            get_sequence_parallel_group())
                                     if T>1:
                                         x_ref = sp_vae(x_ref, vae.encode,
                                                 get_sequence_parallel_group())
                                         Rdepth_ref = sp_vae(Rdepth_ref, vae.encode,
                                                 get_sequence_parallel_group())
+                                        if flow_video is not None:
+                                            flow_ref = torch.zeros_like(flow_latent[:, :, :1])
                                         
                             # assert torch.allclose(x_old, x)
                         # Prepare text inputs

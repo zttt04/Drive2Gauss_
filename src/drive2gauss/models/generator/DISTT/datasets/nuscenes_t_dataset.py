@@ -794,6 +794,16 @@ class NuScenesTDataset(NuScenesDataset):
         if self.skip_refine_depth:
             self.sample_token2depth = {}
         else:
+            self.depth_release_root = kwargs.pop(
+                "depth_release_root", os.environ.get("DRIVE2GAUSS_DATASET_ROOT"))
+            self.motion_release_manifest = kwargs.pop("motion_release_manifest", None)
+            if self.depth_release_root:
+                self.depth_release_root = os.path.abspath(self.depth_release_root)
+                manifest_path = self.motion_release_manifest or os.path.join(
+                    self.depth_release_root, "manifest.jsonl")
+                self.depth_release_token_index = self._load_depth_release_index(manifest_path)
+                self.sample_token2depth = {}
+                return
             self.depth_root_json = kwargs.pop(
                 "depth_root_json", "../misc/nus_sampletoken2depthroot.json")
             self.rdepth_root = kwargs.pop(
@@ -802,6 +812,20 @@ class NuScenesTDataset(NuScenesDataset):
             )
             with open(self.depth_root_json, 'r') as file:
                 self.sample_token2depth = json.load(file)
+
+    @staticmethod
+    def _load_depth_release_index(manifest_path):
+        token_index = {}
+        with open(manifest_path, "r") as stream:
+            for line in stream:
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                scene = str(row["scene"])
+                pair_index = int(row["pair_index"])
+                token_index.setdefault(str(row["source_token"]), (scene, pair_index))
+                token_index.setdefault(str(row["target_token"]), (scene, pair_index + 1))
+        return token_index
 
     @property
     def num_frames(self):
@@ -1055,6 +1079,28 @@ class NuScenesTDataset(NuScenesDataset):
         if self.skip_refine_depth:
             nv = num_views if (num_views is not None and num_views > 0) else 6
             return torch.zeros((nv, 424, 800), dtype=torch.float32)
+        if getattr(self, "depth_release_root", None):
+            try:
+                scene, frame_index = self.depth_release_token_index[sample_token]
+                depth_list = []
+                for cam in [
+                    "CAM_FRONT_LEFT", "CAM_FRONT", "CAM_FRONT_RIGHT",
+                    "CAM_BACK_RIGHT", "CAM_BACK", "CAM_BACK_LEFT",
+                ]:
+                    path = os.path.join(
+                        self.depth_release_root, "depth", scene, cam,
+                        f"depth_{frame_index:06d}.png")
+                    encoded = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+                    if encoded is None or encoded.dtype != np.uint16:
+                        raise FileNotFoundError(path)
+                    depth_m = encoded.astype(np.float32) / 256.0
+                    depth_list.append(2.0 * (depth_m / 100.0) - 1.0)
+                return torch.stack([torch.from_numpy(array) for array in depth_list])
+            except (KeyError, FileNotFoundError, OSError, ValueError) as e:
+                logging.warning(
+                    "[NuScenesTDataset] Release depth missing for sample_token=%s: %s",
+                    sample_token, e)
+                return None
         # Rdepth_root = "./nus_Rdepth/"
         Rdepth_root = self.rdepth_root
         VIEW_ORDER = [
@@ -1097,9 +1143,6 @@ class NuScenesTDataset(NuScenesDataset):
         Returns True iff every frame of the clip has a mapping in
         `sample_token2depth` and both npz files exist for all six cameras.
         """
-        if self.skip_refine_depth:
-            # Waymo adaptation: no refined-depth files are needed.
-            return True
         VIEW_ORDER = [
             "CAM_FRONT_LEFT",
             "CAM_FRONT",
@@ -1108,6 +1151,22 @@ class NuScenesTDataset(NuScenesDataset):
             "CAM_BACK",
             "CAM_BACK_LEFT",
         ]
+        if self.skip_refine_depth:
+            # Waymo adaptation: no refined-depth files are needed.
+            return True
+        if getattr(self, "depth_release_root", None):
+            try:
+                for frame_idx in self.clip_infos[index]:
+                    token = str(self.data_infos[frame_idx]["token"])
+                    scene, release_frame = self.depth_release_token_index[token]
+                    for cam in VIEW_ORDER:
+                        if not os.path.isfile(os.path.join(
+                            self.depth_release_root, "depth", scene, cam,
+                            f"depth_{release_frame:06d}.png")):
+                            return False
+                return True
+            except (KeyError, TypeError):
+                return False
         clip = self.clip_infos[index]
         try:
             for frame_idx in clip:
@@ -1187,10 +1246,26 @@ class NuScenesTDataset(NuScenesDataset):
             ret_dicts.pop("pixel_values")
         return ret_dicts
 
+    def resolve_data_path(self, path):
+        if os.path.isabs(path):
+            return path
+        normalized = path.replace("../", "").replace("./", "")
+        dataset_root = (getattr(self, "data_root", None) or self.dataset_root).rstrip("/")
+        for prefix in ("data/nuscenes/", "nuscenes/"):
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix):]
+                break
+        return os.path.join(dataset_root, normalized)
+
     def prepare_train_data(self, index):
         """This is called by `__getitem__`
         """
         frames = self.get_data_info(index)
+        for frame in frames:
+            frame["lidar_path"] = self.resolve_data_path(frame["lidar_path"])
+            frame["image_paths"] = [
+                self.resolve_data_path(path) for path in frame["image_paths"]
+            ]
         
         # My modi
         # print(self.dataset_root)

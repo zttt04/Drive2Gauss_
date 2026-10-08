@@ -7,11 +7,11 @@ __pycache__/
 .venv/
 configs/paths.env
 
-data/
-pretrained/
-checkpoints/
-outputs/
-wandb/
+/data/
+/pretrained/
+/checkpoints/
+/outputs/
+/wandb/
 *.ckpt
 *.pth
 *.pt

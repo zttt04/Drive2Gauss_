@@ -15,6 +15,7 @@ import torch
 import torch.distributed as dist
 
 from drive2gauss.training import static_decoder_pipeline as pointforward
+from drive2gauss.data import manifest as dataset_manifest
 
 
 FRONT_VIEWS = [0, 1, 2]
@@ -55,10 +56,7 @@ def distributed_context() -> tuple[int, int, int, torch.device]:
 
 
 def read_manifest(path: Path) -> list[dict]:
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    for index, row in enumerate(rows):
-        row["manifest_index"] = index
-    return rows
+    return dataset_manifest.read_jsonl(path)
 
 
 def clip_views(manifest_index: int) -> tuple[str, list[int]]:

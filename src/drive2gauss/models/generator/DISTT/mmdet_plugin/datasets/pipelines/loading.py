@@ -5,8 +5,6 @@ from typing import Any, Dict, Tuple
 import mmcv
 import h5py
 import numpy as np
-from nuscenes.map_expansion.map_api import NuScenesMap
-from nuscenes.map_expansion.map_api import locations as LOCATIONS
 from PIL import Image
 import PIL.ImageDraw as ImageDraw
 
@@ -335,7 +333,10 @@ class LoadBEVSegmentation:
     def _ensure_maps(self):
         """Initialize nuScenes maps only when cache fallback needs them."""
         if not self.maps:
-            for location in LOCATIONS:
+            from nuscenes.map_expansion.map_api import NuScenesMap
+            from nuscenes.map_expansion.map_api import locations
+
+            for location in locations:
                 self.maps[location] = NuScenesMap(self.dataset_root, location)
 
     def __getstate__(self):

@@ -22,6 +22,8 @@ import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 
+from drive2gauss.data import manifest as dataset_manifest
+
 
 WINDOW_STARTS = (0, 4, 8, 12)
 METRIC_NAMES = (
@@ -57,6 +59,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--torch-extensions-root", type=Path, default=None)
     parser.add_argument("--lpips-batch-size", type=int, default=12)
     parser.add_argument("--limit-clips", type=int, default=0)
+    parser.add_argument("--data-root", type=Path, default=None)
+    parser.add_argument("--train-ann-file", type=Path, default=None)
+    parser.add_argument("--val-ann-file", type=Path, default=None)
+    parser.add_argument("--motion-release-root", type=Path, default=None)
+    parser.add_argument("--motion-release-manifest", type=Path, default=None)
+    parser.add_argument("--train-motion-release-root", type=Path, default=None)
+    parser.add_argument("--val-motion-release-root", type=Path, default=None)
     parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
 
@@ -73,12 +82,12 @@ def distributed_context() -> tuple[int, int, int, torch.device]:
 
 
 def read_front_rows(path: Path, split: str) -> list[dict[str, Any]]:
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    rows = dataset_manifest.read_jsonl(path)
     selected = []
-    for manifest_index, row in enumerate(rows):
+    for row in rows:
         if row.get("query_view_group") != "front":
             continue
-        selected.append({**row, "manifest_index": manifest_index, "dataset_split": split})
+        selected.append({**row, "dataset_split": split})
     return selected
 
 
@@ -470,6 +479,18 @@ def main() -> None:
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     checkpoint_step = int(checkpoint["step"])
     train_args = checkpoint_train_args(checkpoint["config"])
+    for name in (
+        "data_root",
+        "train_ann_file",
+        "val_ann_file",
+        "motion_release_root",
+        "motion_release_manifest",
+        "train_motion_release_root",
+        "val_motion_release_root",
+    ):
+        value = getattr(args, name)
+        if value is not None:
+            setattr(train_args, name, value)
     train_args.context_frame_count = 4
     train_args.single_view_train = False
     rows = read_front_rows(args.train_manifest, "train")

@@ -70,14 +70,17 @@ def render_gsplat(gaussian, clip, frame_index, view_index, render_height, render
     from gsplat import rasterization
 
     viewmats, ks = camera_for_target(clip, frame_index, view_index, render_width, render_height, args, device)
+    # gsplat's packed rasterizer expects one shared background vector.  This
+    # renderer submits one camera per call, so a shared vector is sufficient
+    # and remains compatible with current gsplat releases.
     backgrounds = torch.full(
-        (viewmats.shape[0], 3), float(args.background), dtype=torch.float32, device=device
+        (3,), float(args.background), dtype=torch.float32, device=device
     )
     colors, _, _ = rasterization(
         means=means_at_frame(gaussian, frame_index), quats=gaussian["quats"], scales=gaussian["scales"],
         opacities=opacities_at_frame(gaussian, frame_index, args), colors=gaussian["colors"], viewmats=viewmats, Ks=ks,
         width=render_width, height=render_height, near_plane=0.1, far_plane=200.0,
-        backgrounds=backgrounds, render_mode="RGB",
+        backgrounds=backgrounds, render_mode="RGB", packed=True,
     )
     return colors[0].permute(2, 0, 1).clamp(0.0, 1.0)
 
@@ -87,14 +90,13 @@ def render_appearance_features(gaussian, clip, frame_index, view_index, render_h
 
     viewmats, ks = camera_for_target(clip, frame_index, view_index, render_width, render_height, args, device)
     feature_dim = gaussian["appearance_features"].shape[-1]
-    backgrounds = torch.zeros(
-        (viewmats.shape[0], feature_dim), dtype=torch.float32, device=device
-    )
+    backgrounds = torch.zeros((feature_dim,), dtype=torch.float32, device=device)
     features, _, _ = rasterization(
         means=means_at_frame(gaussian, frame_index), quats=gaussian["quats"], scales=gaussian["scales"],
         opacities=opacities_at_frame(gaussian, frame_index, args), colors=gaussian["appearance_features"],
         viewmats=viewmats, Ks=ks, width=render_width, height=render_height,
         near_plane=0.1, far_plane=200.0, backgrounds=backgrounds, render_mode="RGB",
+        packed=True,
     )
     return features[0].permute(2, 0, 1)
 

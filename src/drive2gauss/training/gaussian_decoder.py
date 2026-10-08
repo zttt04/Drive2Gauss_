@@ -24,6 +24,8 @@ import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel
 
 from drive2gauss.data import feature_cache
+from drive2gauss.data import manifest as dataset_manifest
+from drive2gauss.data import motion_release
 from drive2gauss.data import query_dataset as query_data
 from drive2gauss.data import query_sampling as stage1
 from drive2gauss.training import static_decoder_pipeline as pointforward
@@ -91,12 +93,13 @@ class OnlineQuerySource:
         self,
         ann_file: Path,
         data_root: Path,
-        flow_rgb_root: Path,
-        flow_index_path: Path,
+        flow_rgb_root: Path | None,
+        flow_index_path: Path | None,
         width: int,
         height: int,
         allow_missing_flow_rgb: bool,
         zero_flow_input: bool,
+        motion_data: motion_release.MotionRelease | None = None,
     ) -> None:
         annotation = query_data.load_ann(ann_file)
         self.infos = annotation["infos"] if isinstance(annotation, dict) else annotation
@@ -109,14 +112,21 @@ class OnlineQuerySource:
         self.height = height
         self.allow_missing_flow_rgb = allow_missing_flow_rgb
         self.zero_flow_input = zero_flow_input
-        flow_index = query_data.load_json(flow_index_path)
-        self.flow_scenes = flow_index["scenes"]
-        first_view = query_data.VIEW_ORDER[0]
-        self.token_to_flow_scene = {
-            str(token): str(scene_index)
-            for scene_index, scene in self.flow_scenes.items()
-            for token in scene.get(first_view, {})
-        }
+        self.motion_data = motion_data
+        if motion_data is None:
+            if flow_index_path is None or flow_rgb_root is None:
+                raise ValueError("Legacy flow loading requires both flow root and flow index")
+            flow_index = query_data.load_json(flow_index_path)
+            self.flow_scenes = flow_index["scenes"]
+            first_view = query_data.VIEW_ORDER[0]
+            self.token_to_flow_scene = {
+                str(token): str(scene_index)
+                for scene_index, scene in self.flow_scenes.items()
+                for token in scene.get(first_view, {})
+            }
+        else:
+            self.flow_scenes = {}
+            self.token_to_flow_scene = {}
 
     def _frame_infos(self, row: dict) -> list[dict]:
         token = str(row["token"])
@@ -174,6 +184,30 @@ class OnlineQuerySource:
                         )
                     flow_rgb[frame_index, view_index] = rgb
                     flow_valid[frame_index, view_index] = 1
+            return torch.from_numpy(flow_rgb), torch.from_numpy(flow_valid)
+        if self.motion_data is not None:
+            for frame_index, (source_token, target_token) in enumerate(
+                zip(clip_tokens[:-1], clip_tokens[1:])
+            ):
+                for view_index in view_indices:
+                    camera = query_data.VIEW_ORDER[view_index]
+                    try:
+                        rgb, valid = self.motion_data.load_masked_flow_rgb(
+                            source_token, target_token, camera
+                        )
+                    except (KeyError, FileNotFoundError):
+                        if self.allow_missing_flow_rgb:
+                            continue
+                        raise
+                    if rgb.shape[:2] != (self.height, self.width):
+                        rgb = query_data.cv2.resize(
+                            rgb, (self.width, self.height), interpolation=query_data.cv2.INTER_AREA
+                        )
+                        valid = query_data.cv2.resize(
+                            valid, (self.width, self.height), interpolation=query_data.cv2.INTER_NEAREST
+                        )
+                    flow_rgb[frame_index, view_index] = rgb
+                    flow_valid[frame_index, view_index] = valid
             return torch.from_numpy(flow_rgb), torch.from_numpy(flow_valid)
         flow_scene_index = self.token_to_flow_scene.get(clip_tokens[0])
         if flow_scene_index is None:
@@ -332,6 +366,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--val-masked-flow-rgb-root", type=Path, default=None)
     parser.add_argument("--train-masked-flow-index", type=Path, default=None)
     parser.add_argument("--val-masked-flow-index", type=Path, default=None)
+    parser.add_argument(
+        "--motion-release-root",
+        type=Path,
+        default=None,
+        help="Portable release root containing manifest.jsonl plus relative flow/mask paths.",
+    )
+    parser.add_argument("--motion-release-manifest", type=Path, default=None)
+    parser.add_argument("--train-motion-release-root", type=Path, default=None)
+    parser.add_argument("--val-motion-release-root", type=Path, default=None)
     parser.add_argument(
         "--allow-missing-flow-rgb",
         action="store_true",
@@ -600,10 +643,7 @@ def distributed_context() -> tuple[int, int, int, torch.device]:
 
 
 def read_manifest(path: Path) -> list[dict]:
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    for index, row in enumerate(rows):
-        row["manifest_index"] = index
-    return rows
+    return dataset_manifest.read_jsonl(path)
 
 
 def split_rows(
@@ -690,7 +730,14 @@ def build_query_source(args: argparse.Namespace, split: str):
         "flow_index_path": f"--{split}-masked-flow-index",
         "data_root": "--data-root",
     }
-    missing = [option_names[name] for name, value in names.items() if value is None]
+    motion_release_root = (
+        getattr(args, f"{split}_motion_release_root", None)
+        or getattr(args, "motion_release_root", None)
+    )
+    motion_release_manifest = getattr(args, "motion_release_manifest", None)
+    use_motion_release = motion_release_root is not None
+    required_names = ("ann_file", "data_root") if use_motion_release else tuple(names)
+    missing = [option_names[name] for name in required_names if names[name] is None]
     if missing:
         raise ValueError(f"--online-query requires: {', '.join(missing)}")
     return OnlineQuerySource(
@@ -699,6 +746,14 @@ def build_query_source(args: argparse.Namespace, split: str):
         height=args.height,
         allow_missing_flow_rgb=args.allow_missing_flow_rgb,
         zero_flow_input=args.zero_flow_input,
+        motion_data=(
+            motion_release.MotionRelease(
+                motion_release_root,
+                motion_release_manifest,
+            )
+            if use_motion_release
+            else None
+        ),
     )
 
 

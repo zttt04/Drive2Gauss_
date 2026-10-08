@@ -1,5 +1,6 @@
 from collections import OrderedDict, defaultdict
 from pprint import pformat
+from pathlib import Path
 from typing import Iterator, List, Optional
 import logging
 
@@ -17,6 +18,7 @@ from .utils import IMG_FPS
 
 import json
 import os
+from drive2gauss.data.motion_release import MotionRelease
 @DATASETS.register_module()
 class NuScenesVariableDataset(NuScenesTDataset):
     def __init__(
@@ -49,6 +51,8 @@ class NuScenesVariableDataset(NuScenesTDataset):
         latent_manifest_path=None,
         depth_root_json=None,
         skip_refine_depth=False,
+        depth_release_root=None,
+        motion_release_manifest=None,
     ) -> None:
         self.video_lengths = video_length
         self.start_on_keyframe = start_on_keyframe
@@ -78,6 +82,17 @@ class NuScenesVariableDataset(NuScenesTDataset):
         self.base_fps = base_fps
         self.drop_ori_imgs = drop_ori_imgs
         self.skip_refine_depth = skip_refine_depth
+        self.depth_release_root = depth_release_root or os.environ.get("DRIVE2GAUSS_DATASET_ROOT")
+        if self.depth_release_root:
+            self.depth_release_root = os.path.abspath(self.depth_release_root)
+            manifest_path = motion_release_manifest or os.path.join(
+                self.depth_release_root, "manifest.jsonl")
+            self.depth_release_token_index = self._load_depth_release_index(manifest_path)
+            self.motion_release = MotionRelease(
+                self.depth_release_root, Path(manifest_path))
+            self.sample_token2depth = {}
+            return
+        self.motion_release = None
         depth_root_json = depth_root_json or self.find_depth_root_json()
         with open(depth_root_json, 'r') as file:
             self.sample_token2depth = json.load(file) 
@@ -111,6 +126,7 @@ class NuScenesVariableDataset(NuScenesTDataset):
         cache_by_key = {}
         manifest_paths = self.iter_manifest_paths(latent_manifest_path)
         for manifest_path in manifest_paths:
+            manifest_root = os.path.dirname(os.path.abspath(manifest_path))
             with open(manifest_path, "r") as file:
                 for line in file:
                     if not line.strip():
@@ -118,7 +134,13 @@ class NuScenesVariableDataset(NuScenesTDataset):
                     row = json.loads(line)
                     video_length = int(row["video_length"])
                     dataset_index = int(row["dataset_index"])
-                    cache_by_key[(video_length, dataset_index)] = row["path"]
+                    latent_path = os.path.expanduser(row["path"])
+                    if not os.path.isabs(latent_path):
+                        path_base = os.path.expanduser(row.get("path_base", "."))
+                        if not os.path.isabs(path_base):
+                            path_base = os.path.join(manifest_root, path_base)
+                        latent_path = os.path.abspath(os.path.join(path_base, latent_path))
+                    cache_by_key[(video_length, dataset_index)] = latent_path
         if manifest_paths:
             logging.info(
                 "[%s] Loaded %s cached latents from %s",
@@ -267,7 +289,10 @@ class NuScenesVariableDataset(NuScenesTDataset):
 
     def load_frames(self, frames):
         if not self.latent_cache_by_source_key and not self.skip_refine_depth:
-            return super().load_frames(frames)
+            ret_dicts = super().load_frames(frames)
+            if ret_dicts is not None and self.motion_release is not None:
+                ret_dicts["flow_rgb_values"] = self.load_release_flow_rgb(frames)
+            return ret_dicts
         if None in frames:
             return None
         examples = []
@@ -311,6 +336,22 @@ class NuScenesVariableDataset(NuScenesTDataset):
                 list(ret_dicts['pixel_values'].shape))
             ret_dicts.pop("pixel_values")
         return ret_dicts
+
+    def load_release_flow_rgb(self, frames):
+        view_order = (
+            "CAM_FRONT_LEFT", "CAM_FRONT", "CAM_FRONT_RIGHT",
+            "CAM_BACK_RIGHT", "CAM_BACK", "CAM_BACK_LEFT",
+        )
+        height, width = 424, 800
+        values = np.full(
+            (len(frames), len(view_order), height, width, 3), 255, dtype=np.uint8)
+        for frame_index, (source, target) in enumerate(zip(frames[:-1], frames[1:])):
+            for view_index, camera in enumerate(view_order):
+                rgb, _ = self.motion_release.load_masked_flow_rgb(
+                    str(source["token"]), str(target["token"]), camera)
+                values[frame_index, view_index] = rgb
+        tensor = torch.from_numpy(values).permute(0, 1, 4, 2, 3).float()
+        return tensor.div_(127.5).sub_(1.0)
 
     def resolve_data_path(self, path):
         if os.path.isabs(path):
