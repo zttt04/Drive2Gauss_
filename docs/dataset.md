@@ -52,23 +52,29 @@ complete depth release until a complete shard listing and manifest are
 confirmed. The published 700-shard count and byte total above refer only to
 flow and masks.
 
-## Mini-sample status
+## Mini-sample
 
-An input-only, one-clip sample has been prepared and tested locally on the
-server. It contains one 17-frame, six-camera nuScenes clip, RGB/depth/flow/mask
-inputs, minimal annotations and map cache, and a relative-path manifest; it
-does not include generated latents or runtime caches. The archive is not
-attached to this repository yet because it contains nuScenes RGB and derived
-data. Public redistribution must comply with the
-[nuScenes terms of use](https://www.nuscenes.org/terms-of-use), including the
-applicable non-commercial and attribution/share-alike requirements. Obtain
-nuScenes through its authorized distribution if the sample is not made
-available here.
+An input-only, one-clip sample is available from the
+[GitHub Release](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1):
+`drive2gauss_sample_input_v1.tar.gz` (78,370,901 bytes). It contains one
+17-frame, six-camera nuScenes clip, 102 RGB images, depth/flow/mask inputs,
+minimal annotations and map cache, and a relative-path manifest. Generated
+latents and runtime caches are not included. SHA256:
+
+```text
+ad8316526fc6f7d8690398ffde9764a02de10baae5e9db82fbb974f171f358a6
+```
+
+The sample contains nuScenes RGB and derived data. Public use and
+redistribution are subject to the
+[nuScenes terms of use](https://www.nuscenes.org/terms-of-use), including
+applicable non-commercial and attribution/share-alike requirements. This
+release does not grant additional rights to the underlying nuScenes data.
 
 ## License and citation
 
 The repository's BSD-3-Clause license covers original code only. nuScenes data
-and derived artifacts remain subject to the nuScenes terms; this page does not
-grant rights to nuScenes. Users must obtain the source dataset through its
-authorized channel and comply with its terms. See
+and derived artifacts in the mini-sample remain subject to the nuScenes terms;
+this page does not grant additional rights to nuScenes. Users must comply with
+those terms. See
 [`third_party_notices.md`](third_party_notices.md).

@@ -57,6 +57,7 @@ code, weights, or data.
 
 - **Checkpoints:** [Google Drive folder](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c). Google sign-in may be required; see [checkpoint details](docs/checkpoints.md).
 - **Dataset:** [Google Drive folder](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ). The 700-scene flow/mask shards are available; depth-shard completeness is not yet verified. See [dataset details](docs/dataset.md).
+- **Mini-sample:** [Download the one-clip input sample](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1) (78 MB; nuScenes terms apply).
 
 ## Installation
 
