@@ -2,7 +2,7 @@
 
 > **TL;DR:** Drive2Gauss converts jointly generated multiview RGB, metric depth, and dynamic flow into a dynamic Gaussian scene in one feed-forward pass, enabling reconstruction and novel-view rendering.
 
-[Project Page](https://zttt04.github.io/Drive2Gauss_page/) | [Code](https://github.com/zttt04/Drive2Gauss_) | [Checkpoints](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c) | [Dataset](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ) | [Mini-sample](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1)
+🌐 [Project Page](https://zttt04.github.io/Drive2Gauss_page/) | 💻 [Code](https://github.com/zttt04/Drive2Gauss_) | 💾 [Checkpoints](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c) | 🗂️ [Dataset](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ) | 🧪 [Mini-sample](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1)
 
 <p align="center">
 Tong Zhao<sup>1,2</sup>, Zhiyuan Han<sup>2</sup>, Lin Chen<sup>3</sup>, Bowen Xie<sup>4</sup>,<br>
