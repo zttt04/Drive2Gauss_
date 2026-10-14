@@ -348,13 +348,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-cache-root", type=Path, default=None)
     parser.add_argument("--val-cache-root", type=Path, default=None)
     parser.add_argument(
-        "--include-val-in-train",
-        action="store_true",
-        help="Intentionally add the validation manifest to the training schedule. "
-        "Rows keep their validation cache and online-Query source; validation is "
-        "still reported as a deliberate leakage/overfit measurement.",
-    )
-    parser.add_argument(
         "--online-query",
         action="store_true",
         help="Build camera/flow Query payloads online instead of loading packaged clip.pt files.",
@@ -1660,8 +1653,6 @@ def main() -> None:
         raise ValueError(f"Expected at least one DDP rank, found {world_size}")
     train_rows, val_rows, train_cache_root, val_cache_root = resolve_manifests_and_caches(args)
     train_rows = [{**row, "_training_source": "train"} for row in train_rows]
-    if args.include_val_in_train:
-        train_rows.extend({**row, "_training_source": "val"} for row in val_rows)
     if args.train_manifest_indices is not None:
         selected = set(args.train_manifest_indices)
         train_rows = [row for row in train_rows if int(row["manifest_index"]) in selected]
@@ -1712,19 +1703,7 @@ def main() -> None:
         if args.limit_train_clips == 0:
             smoke_rows = []
             smoke_scenes = set()
-            if args.include_val_in_train:
-                source_rows = {
-                    source: [row for row in train_rows if training_source(row) == source]
-                    for source in ("train", "val")
-                }
-                smoke_candidates = []
-                for offset in range(max(len(rows) for rows in source_rows.values())):
-                    for source in ("train", "val"):
-                        if offset < len(source_rows[source]):
-                            smoke_candidates.append(source_rows[source][offset])
-            else:
-                smoke_candidates = train_rows
-            for row in smoke_candidates:
+            for row in train_rows:
                 scene_key = (training_source(row), int(row["scene_index"]))
                 if scene_key in smoke_scenes:
                     continue
@@ -1797,11 +1776,7 @@ def main() -> None:
     args.steps_per_epoch = steps_per_epoch
     args.total_steps = args.iterations if args.iterations > 0 else args.epochs * steps_per_epoch
     train_query_source = build_query_source(args, "train")
-    val_query_source = (
-        build_query_source(args, "val")
-        if rank == 0 or args.include_val_in_train
-        else None
-    )
+    val_query_source = build_query_source(args, "val") if rank == 0 else None
     train_query_sources = {"train": train_query_source, "val": val_query_source}
     if rank == 0:
         write_run_files(args, train_rows, val_rows, fixed_val_rows, world_size)

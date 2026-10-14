@@ -44,13 +44,11 @@ boxes. Vehicles use a 0.5 m/s speed threshold, other dynamic classes use
 Keep flow validity and dynamic-object masks as separate signals. For dynamic
 motion supervision, use `flow_valid & (dynamic_object_mask > 0)`.
 
-## Depth status
+## Depth data
 
-A separate depth-shard upload was started, but its completion and exact remote
-coverage have not been verified. Do not assume the Drive folder contains a
-complete depth release until a complete shard listing and manifest are
-confirmed. The published 700-shard count and byte total above refer only to
-flow and masks.
+The Google Drive release provides the corresponding per-scene depth shards
+under `depth_shards/`. Extract them alongside the flow and mask trees and use
+the release manifest to resolve paths relative to the dataset root.
 
 ## Mini-sample
 

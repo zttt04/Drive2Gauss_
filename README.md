@@ -49,7 +49,7 @@ The resulting scene can be reconstructed and rendered from novel viewpoints.
 | Resource | Contents | Download / details |
 | --- | --- | --- |
 | Checkpoints | Generator EMA and Gaussian decoder weights | [Google Drive](https://drive.google.com/drive/folders/1qGS1ix6Krm3LLeDMmzKqd4sgKRCewm-c) · [files, hashes, and metrics](docs/checkpoints.md) |
-| Dataset | 700-scene flow/mask release; depth-shard completeness is unverified | [Google Drive](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ) · [contents and status](docs/dataset.md) |
+| Dataset | 700-scene flow, motion-mask, and depth release | [Google Drive](https://drive.google.com/drive/folders/1XB83zwYeLrJ6WnIZ51adw_7Q9esjggSJ) · [contents and layout](docs/dataset.md) |
 | Mini-sample | One-clip, input-only sample (78 MB) | [GitHub Release](https://github.com/zttt04/Drive2Gauss_/releases/tag/data-sample-v1) · nuScenes terms apply |
 
 Google sign-in may be required to access the Drive folders. The GitHub release
